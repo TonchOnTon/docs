@@ -28,42 +28,11 @@ The two ways a deployer **can** affect post-launch dynamics:
 
 There is no rug-pull path through the contract design.
 
-## Why 800/200 instead of 850/150?
-
-The 80/20 split is closer to Pump.fun's calibration (which is approximately 79.3/20.7) and gives the post-graduation DeDust pool deeper liquidity. The 50M extra Jettons (200M vs 150M) seeds a larger AMM reserve, reducing slippage on the first hours of post-graduation trading.
-
-The original tonch deploy used 85/15. We redeployed at 80/20 before any token launched, so no users were affected by the change.
-
-## Why is the curve gentler than Pump.fun's?
-
-Pump.fun's curve has `vt = 30` SOL, which makes the early-buy price climb very steeply (a 1 SOL buy at the start moves the price ~3.3%). tonch uses `vt = 300` TON, scaled 10× larger relative to its 1,000 TON graduation target.
-
-The result: tonch's curve climbs ~19× from launch to graduation, while Pump.fun's climbs ~270×. tonch favors gradual price discovery; if you want the steep-start dynamics, Pump.fun on Solana is your tool.
-
-## What if my launch transaction fails?
-
-Two cases:
-
-- **The wallet refuses to sign or the tx never broadcasts.** No funds move. Try again or switch wallets.
-- **The transaction broadcasts but the factory rejects it.** The 3 TON launch fee is consumed by gas (not refunded). Check the factory's `get_factory_config` to confirm you sent the right amount, then retry.
-
-In practice the factory only rejects launches with malformed payloads — the frontend builds these correctly, so a "broadcast and reject" outcome is rare.
-
-## What if my dev-buy fails?
-
-The launch and the dev-buy are separate transactions. If the launch lands but the dev-buy fails, you have a deployed token with no first-buyer. You can manually retry the dev-buy by visiting the token's detail page and using the buy panel — same flow as any trader.
-
 ## How long does graduation take?
 
 The trigger is a single `op::graduate` message. The full migration (treasury cut → Jetton burn → DeDust deposits → LP routing → state transition) takes 3–10 chain blocks, typically 5–15 seconds end-to-end.
 
 If a step bounces (rare, usually only if DeDust is mid-deploy or a vault is unreachable), the keeper retries automatically. There is no permanent stuck state — graduation can always be retriggered.
-
-## Can I claim my dev-buy fees?
-
-If you mean the 1% curve fee paid on your dev-buy: yes, but only as part of the deployer's `op::sweep_fees` claim after graduation. The curve fee is pooled across all trades, not per-trader.
-
-If you mean the dev-buy itself: those are Jettons, not fees. They land in your wallet at the moment of the dev-buy and you trade them like any other holder.
 
 ## Can I list my token on a centralized exchange after launch?
 
@@ -73,12 +42,12 @@ The locked LP works in your favor for listings — exchanges look for credible p
 
 ## Where are the contracts deployed?
 
-Mainnet only, currently. See [Reference / Contracts](/reference/contracts) for addresses. Testnet exists for development but isn't connected to the public frontend.
+See [Reference / Contracts](/reference/contracts) for addresses.
 
 ## Is there a token for tonch?
 
-No tonch token. The protocol is funded by the launch fee + graduation cut from individual Jettons.
+There is no protocol token at this point in time.
 
 ## How do I report a bug?
 
-Open an issue on the [tonch GitHub](https://github.com/TonchOnTon/tonch/issues). Security-sensitive issues: reach out via the X account [@tonchonton](https://x.com/tonchonton) and we'll set up a private channel.
+Reach out to us directly via the X account [@tonchonton](https://x.com/tonchonton) and we'll set up a private channel.
