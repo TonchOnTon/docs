@@ -75,7 +75,7 @@ DeDust's pool contract receives both deposits, computes the LP supply to mint, a
 The curve's state transitions to `state::graduated`. From this point:
 
 - Buys and sells are rejected.
-- The `op::sweep_fees` opcode (deployer-only) becomes claimable by the original deployer for any accumulated curve fees.
+- The `op::sweep_fees` opcode is callable by anyone and forwards any accumulated curve fees to the protocol treasury.
 - The Jetton master continues to function normally for transfers among holders.
 
 ## Why so many steps in one transaction
@@ -88,12 +88,9 @@ Each step uses TON's actor-model message passing — sending a message to anothe
 
 ## What the deployer gets
 
-Two things flow back to the deployer at graduation:
+The only thing that flows back to the deployer at graduation is their **dev-buy holdings** — if the deployer dev-bought, those Jettons have been in the deployer's wallet since the moment of the dev-buy and are not affected by graduation.
 
-1. **Accumulated curve fees** — the 1% per-trade fees collected during the curve phase. Claimable via `op::sweep_fees` by the original deployer's address. For a curve that filled in moderate volume, this is roughly 1% of 1,000 TON ≈ 10 TON.
-2. **Their dev-buy holdings** — if the deployer dev-bought, those Jettons are in the deployer's wallet from the moment of the dev-buy. They are not affected by graduation.
-
-The deployer receives **no LP rewards, no graduation bonus, no special unlock**. The LP is locked for everyone, including them.
+The deployer receives **no LP rewards, no graduation bonus, no special unlock, no curve-fee revenue**. The LP is locked for everyone, including them. Both the 1% curve fees and the 10% graduation cut flow to the protocol treasury.
 
 ## Verification
 

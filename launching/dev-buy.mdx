@@ -33,7 +33,7 @@ The dev-buy executes against the same curve state as any other first-buy. Specif
 - The curve starts with `virtual_ton = 300`, `virtual_token = 1.010B`, `real_ton = 0`, `real_token = 800M`.
 - The dev-buy of size `T` TON moves the price using the same constant-product formula as everyone else: `tokens_out = (virtual_token * T_net) / (virtual_ton + T_net)`, where `T_net = T * 0.99` (after the 1% fee).
 - The dev-buy pays the same 1% curve fee.
-- The fee accrues to the curve's accumulated fees, claimable by the deployer **after graduation** via `op::sweep_fees`.
+- The fee accrues to the curve's accumulated fees, swept to the **protocol treasury** via `op::sweep_fees` (a permissionless opcode tonch's keeper triggers automatically).
 
 There is **no early-buyer discount, no fee waiver, no Jetton bonus**.
 
@@ -51,6 +51,6 @@ These are pre-fee approximations. The actual fill is computed on-chain at execut
 
 - **Not a vesting commitment.** The Jettons land in your wallet immediately. You can sell them back to the curve at any time, just like any other holder.
 - **Not a separate price tier.** Everyone gets the same per-Jetton price the curve quotes them at the moment they buy.
-- **Not refundable.** The 1% fee on the dev-buy goes into the curve's accumulated fees and is paid out at graduation along with all other accumulated curve fees.
+- **Not refundable.** The 1% fee on the dev-buy goes into the curve's accumulated fees, which are swept to the protocol treasury after graduation. None of the fee returns to the deployer.
 
 If you want to acquire a substantial position without moving the price, the dev-buy is the worst way to do it (you'll move the price up against yourself). The dev-buy is for committing publicly in a small amount, not for accumulating quietly.
