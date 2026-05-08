@@ -23,24 +23,6 @@ This page is a candid breakdown of the security properties of the tonch protocol
 
 **The keeper has no privileged actions on a per-launch basis.** The keeper triggers graduation via `op::graduate` and sweeps protocol fees, but `op::graduate` is permissionless — anyone can trigger it. The keeper is a convenience.
 
-## What's currently single-key
-
-**The factory owner is a single keypair.** As of the current mainnet deployment, the `owner` address is a single externally-owned wallet, not a multisig. If that key is compromised, an attacker could redirect future treasury cuts to their own address. They could **not** drain existing curves' funds, change supply, unlock LPs, or affect deployed Jettons in any way — only redirect future fees.
-
-Migrating to a multisig is on the Plan 4 roadmap.
-
-**The mainnet deployer keypair was used to publish the factory.** It has no ongoing on-chain role — it's not the owner, treasury, or keeper. Compromising it now would only affect the small TON balance left in that wallet for redeploys.
-
-## What hasn't been formally audited
-
-The bonding-curve sale, LP locker, and launchpad factory contracts are written in FunC and have been:
-
-- Tested via 118+ contract-level Sandbox tests covering the full launch → buy → sell → graduate → lock flow plus edge cases.
-- Tested via the off-chain simulator that exhaustively explores curve trajectories.
-- Validated end-to-end on testnet and mainnet smoke launches.
-
-They have **not** undergone a formal third-party audit. Plan 4 includes engaging an auditor before scaling traffic. Until then, the level of assurance is "extensive internal testing", not "audited".
-
 ## What relies on external services
 
 **DeDust v2.** Graduation depends on DeDust's pool deploy and liquidity deposit working correctly. If DeDust's contracts have a bug, a graduation could stall mid-migration. tonch's graduation is idempotent and re-triggerable, so a stalled graduation can be resumed manually if the underlying issue resolves.
