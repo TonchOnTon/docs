@@ -1,55 +1,44 @@
-# Mintlify Starter Kit
+# tonch Mintlify docs
 
-Use the starter kit to get your docs deployed and ready to customize.
+User-facing documentation for [tonch.app](https://tonch.app), formatted as a Mintlify site.
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
-
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
-
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## AI-assisted writing
-
-Set up your AI coding tool to work with Mintlify:
+## Local preview
 
 ```bash
-npx skills add https://mintlify.com/docs
+# from this directory
+npx mintlify dev
 ```
 
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
+Mintlify's CLI serves the docs at `http://localhost:3000` with live reload. The first run installs the CLI globally if it isn't already.
 
-See the [AI tools guides](/ai-tools) for tool-specific setup.
+## Deploy
 
-## Development
+Two options:
 
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
+1. **Mintlify Cloud** (recommended). Connect this repo at [mintlify.com](https://mintlify.com); `docs.json` lives at the repo root so no subdirectory configuration is needed. Docs auto-deploy on every push to `main`. Mintlify hosts at a `*.mintlify.app` subdomain by default; you can CNAME it to `docs.tonch.app` once the DNS is ready.
+2. **Self-host.** `npx mintlify build` produces a static export. Serve it from any static host.
 
+## Editing
+
+Each page is an MDX file with frontmatter:
+
+```mdx
+---
+title: Page title
+description: One-line description used in <head> + nav.
+---
+
+Body content. Markdown plus Mintlify's React components (<Note>, <Warning>, <Steps>, <Card>, <CodeGroup>, etc.).
 ```
-npm i -g mint
-```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+Internal links use root-relative paths: `/trading/overview`, `/launching/launch-form`, etc. Don't include the `.mdx` extension.
 
-```
-mint dev
-```
+The navigation tree lives in `docs.json` → `navigation.groups`. Add a new page by creating the MDX file **and** adding it to the appropriate group's `pages` array.
 
-View your local preview at `http://localhost:3000`.
+## Source-of-truth notes
 
-## Publishing changes
+The application source for tonch lives in a separate repository at [github.com/TonchOnTon/tonch](https://github.com/TonchOnTon/tonch).
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
-
-## Need help?
-
-### Troubleshooting
-
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
-
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+- **Calibration constants** (1B supply, 800M for-sale, 1000 TON target, etc.) are duplicated between these docs and `tonlaunch/contracts/params.fc` + `tonlaunch/scripts/deploy/deploy-mainnet.ts` in the app repo. If calibration changes there, mirror the new values here.
+- **Contract addresses** are duplicated between `reference/contracts.mdx` here and `DEPLOYMENTS.md` in the app repo. Keep them in sync.
+- **FAQ copy** intentionally diverges from the on-chain landing FAQ at `tonlaunch/components/landing/LandingSections.tsx` in the app repo — the landing page is simplified for first-time visitors; these docs are precise for readers who want the actual numbers.

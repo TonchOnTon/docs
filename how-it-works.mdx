@@ -1,0 +1,61 @@
+---
+title: How it works
+description: The lifecycle of a tonch Jetton from launch to permanent LP lock.
+---
+
+Every tonch Jetton goes through the same five-stage lifecycle. There are no shortcuts, no special creator paths, and no manual operations after launch.
+
+## 1. Launch
+
+A deployer signs one TonConnect transaction at [tonch.app/launch](https://tonch.app/launch). The transaction sends 3 TON to the singleton **launchpad factory** with the token metadata (name, symbol, description, image URL, optional socials).
+
+The factory then:
+
+1. Computes the future Jetton master address using TEP-64 onchain content + the standard Jetton master code.
+2. Deploys a per-launch **bonding curve sale** contract that holds the token's TON and Jetton reserves.
+3. Deploys the **TEP-74 Jetton master** with 1B total supply, owned initially by the factory.
+4. Mints 800M Jettons to the curve (the for-sale supply) and 200M to the curve's holding wallet (the AMM reserve, held until graduation).
+5. Logs a `TokenLaunched` external-out message containing the new Jetton's address — picked up by the indexer in ~10–60 seconds.
+
+## 2. Curve trading
+
+The token opens on a virtual constant-product bonding curve with these starting reserves:
+
+| Reserve | Initial value |
+|---|---|
+| Virtual TON | 300 TON |
+| Virtual Jetton | 1.010B |
+| Real TON | 0 |
+| Real Jetton | 800M (for-sale supply) |
+
+Every buy adds TON to the real reserve and removes Jettons from the for-sale supply, paying a 1% fee. Every sell does the inverse. Price discovery happens entirely on chain — there's no order book.
+
+The deployer can optionally pre-fund a **dev-buy** at launch time. The dev-buy is just another buy on the same curve — same price, same fee, no preferential allocation.
+
+## 3. Graduation trigger
+
+When real TON collected reaches **1,000 TON**, the curve becomes eligible to graduate. A keeper service monitors curves and broadcasts the `op::graduate` message automatically; alternatively, anyone can graduate the curve themselves.
+
+## 4. DeDust seeding
+
+`op::graduate` runs the migration in one transaction:
+
+1. **10% of collected TON** (~100 TON) is sent to the protocol treasury as the graduation fee.
+2. **90% of collected TON** (~900 TON) plus the **200M reserved Jettons** seed a TON/Jetton volatile pool on DeDust v2.
+3. Any remaining unsold curve Jettons are **burned**.
+4. The LP Jettons that DeDust mints back to the curve are forwarded to the **LP locker** contract.
+
+## 5. Permanent LP lock
+
+The LP locker has only one accepted opcode: `op::lock_lp` (received via `transfer_notification` from the LP-Jetton wallet). There is no withdrawal opcode, no admin path, no upgrade method. Any non-LP-transfer message bounces back to its sender. Once the LP arrives, it stays locked forever.
+
+Trading after graduation continues on DeDust v2 as a normal pool. Anyone can buy or sell using DeDust's interface or any aggregator. The original tonch curve contract becomes inert — it no longer accepts buys or sells.
+
+## What's transparent
+
+- **The curve constants** — total supply, for-sale split, graduation target, virtual reserves, fee bps — are all stored in the factory's state and readable via `get_factory_config`.
+- **The deployed addresses** — Jetton master, curve, LP locker, DeDust vaults, DeDust pool — are all derivable from the launch transaction and indexed on-chain.
+- **The fees** — 1% on every curve trade, 10% at graduation — are computed in the contract using fixed bps constants. They cannot be changed per launch.
+- **The LP lock** — verifiable by reading the locker's contract code on Tonviewer. There is no withdrawal opcode in the source.
+
+See [Mechanics](/mechanics/bonding-curve) for the math and [Reference / Contracts](/reference/contracts) for addresses.

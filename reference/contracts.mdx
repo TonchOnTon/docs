@@ -1,0 +1,102 @@
+---
+title: Contract addresses
+description: Mainnet contract addresses, code hashes, and where to verify them.
+---
+
+All on-chain state for tonch is split across these contracts. Every address is verifiable on Tonviewer; code hashes match the FunC source in the [tonch monorepo](https://github.com/TonchOnTon/tonch).
+
+## Singleton factory
+
+The factory is the entry point for every launch. Each launch sends a `op::launch` message to the factory; the factory deploys the per-launch contracts and registers the launch.
+
+| Field | Value |
+|---|---|
+| **Mainnet address** | `EQD3pSD5-5mbNpfQExkbKL-Pk8Z4b9jU9z2-3pcuWL6Ok3vF` |
+| **Code hash** | `b6f422db22584051729b96a2fea4eefdc43699b9874c9bcc8ea82f9bcf4063b2` |
+| **Get methods** | `get_factory_config`, `get_jetton_master_address` |
+| **Tonviewer** | [tonviewer.com/EQD3pSD5...](https://tonviewer.com/EQD3pSD5-5mbNpfQExkbKL-Pk8Z4b9jU9z2-3pcuWL6Ok3vF) |
+
+`get_factory_config` returns the configured constants:
+
+| Constant | Value |
+|---|---|
+| Treasury | `EQBPaftCJSAB1WxHdPwfHxNMGYGAjy2b1ExVoj5uakoONzkN` |
+| Owner | `EQDGKWIf4UaCDF0oQu3fGJCIKAIpX2McFhVkgcclMdAA6BhC` |
+| DeDust factory | `EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67` (DeDust v2 mainnet) |
+| Total supply | 1,000,000,000 |
+| For-sale supply | 800,000,000 (80%) |
+| AMM reserve | 200,000,000 (20%) |
+| Graduation target | 1,000 TON |
+| Virtual TON | 300 TON |
+| Virtual Jetton | 1,010,000,000 |
+| Launch fee | 3 TON |
+| Curve fee | 100 bps (1%) |
+
+## Per-launch contracts
+
+Each launch deploys three contracts. The addresses are derived deterministically from the launch parameters; once a launch is registered you can fetch them via `GET /api/launches/<curve_address>` or by reading `TokenLaunched` events.
+
+### Bonding curve sale
+
+Holds the TON and Jetton reserves for the launch. Receives buys and sells until graduation; runs the migration to DeDust at graduation.
+
+| Field | Value |
+|---|---|
+| **Code hash** | `017447a29ce302ddaffa55a88ffc79c4b3f0b952c7c55ee22a3e02227519352e` |
+| **Source** | [`tonlaunch/contracts/bonding-curve-sale.fc`](https://github.com/TonchOnTon/tonch/blob/main/tonlaunch/contracts/bonding-curve-sale.fc) |
+| **Get methods** | `get_curve_state`, `get_quote_buy`, `get_quote_sell` |
+
+### Jetton master (TEP-74)
+
+Standard TEP-74 reference Jetton, vendored unchanged from the TON Foundation reference implementation.
+
+| Field | Value |
+|---|---|
+| **Code hash** | `081069d3325bed7d3e569fa954950cc05d7dd29b919a4a7fb03e7b7b6b734f60` |
+| **Source** | [`tonlaunch/contracts/jetton-master.fc`](https://github.com/TonchOnTon/tonch/blob/main/tonlaunch/contracts/jetton-master.fc) |
+| **Get methods** | `get_jetton_data`, `get_wallet_address` |
+
+### LP locker
+
+Write-only sink for LP Jettons after graduation. No withdrawal opcode.
+
+| Field | Value |
+|---|---|
+| **Code hash** | `f83cb4886801531529bbd6eadf38b3290cb2ec3c288e42c3bcc704c3da785c91` |
+| **Source** | [`tonlaunch/contracts/lp-locker.fc`](https://github.com/TonchOnTon/tonch/blob/main/tonlaunch/contracts/lp-locker.fc) |
+| **Accepted opcode** | `op::lock_lp` only (received as `transfer_notification` from LP-Jetton wallet) |
+
+### Jetton wallet
+
+Standard TEP-74 reference Jetton wallet. Deployed automatically by the Jetton master when a holder receives Jettons.
+
+| Field | Value |
+|---|---|
+| **Code hash** | `e75d56a89243ca63110e575d1c7bfeee4cbff064498d1d1915a23f939ec3700e` |
+| **Source** | [`tonlaunch/contracts/jetton-wallet.fc`](https://github.com/TonchOnTon/tonch/blob/main/tonlaunch/contracts/jetton-wallet.fc) |
+
+## DeDust v2 mainnet
+
+Used by every graduation. Owned and operated by DeDust, not tonch.
+
+| Field | Value |
+|---|---|
+| **Factory** | `EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67` |
+| **Reference** | [docs.dedust.io](https://docs.dedust.io/) |
+
+## Operational addresses
+
+These are not contracts but key wallets in the operational topology:
+
+| Role | Address |
+|---|---|
+| Treasury (recipient of launch fees + graduation cuts) | `EQBPaftCJSAB1WxHdPwfHxNMGYGAjy2b1ExVoj5uakoONzkN` |
+| Factory owner (only `op::set_treasury` admin) | `EQDGKWIf4UaCDF0oQu3fGJCIKAIpX2McFhVkgcclMdAA6BhC` |
+| Keeper (graduation triggerer + fee sweeper) | `EQA7sattW3LBojv7sNnp3lVAxqPEUVira8IlpAzUeY570iAG` |
+| Mainnet deployer (factory deployer) | `EQAp4fMBem7Grw_TwvXnw8y6VhLGT7ETuQOsnXzBZJnBrgkY` |
+
+## Source verification
+
+The factory is verified on Tonviewer — its source matches the FunC files in the repository at the deployed code hash. The verification proof is on chain at `verifier.ton.org`. Per-launch contracts (curve, Jetton master, Jetton wallet, LP locker) inherit verification from their code hashes — once those four hashes are verified once, every future launch deploys identical bytecode and is implicitly verified.
+
+The deploy script that produces these addresses is [`tonlaunch/scripts/deploy/deploy-mainnet.ts`](https://github.com/TonchOnTon/tonch/blob/main/tonlaunch/scripts/deploy/deploy-mainnet.ts).

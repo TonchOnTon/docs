@@ -1,0 +1,78 @@
+---
+title: Fees and costs
+description: All the fees that touch a tonch Jetton — launch fee, curve fee, graduation cut, and gas estimates.
+---
+
+This page enumerates every fee a deployer or trader pays. Numbers are exact for the current factory configuration (factory address: see [Reference / Contracts](/reference/contracts)).
+
+## Launch fee — 3 TON
+
+Paid once by the deployer, at launch, to the factory. Covers:
+
+- Gas for deploying the curve contract, Jetton master, LP locker.
+- Storage rent prepayment for the new contracts.
+- The factory's own gas overhead.
+
+The fee is hard-coded in the factory's state and visible via `get_factory_config` → `launch_fee`. It cannot be changed per launch.
+
+If the launch transaction reverts after the factory accepts the message, the fee is **not refunded**. If the transaction never sends (wallet refuses, RPC timeout), no funds move.
+
+## Curve trading fee — 1%
+
+Applied to every buy and sell on the bonding curve. Stored in the factory state as `curve_fee_bps = 100` (100 basis points = 1%).
+
+- **On buy:** of the TON sent by the buyer, 1% is deducted before the curve math computes Jettons out. The buyer gets fewer Jettons than the pre-fee price would suggest.
+- **On sell:** of the TON the curve would owe the seller, 1% is deducted before the seller receives it. The seller gets less TON than the pre-fee price would suggest.
+
+The fee accrues in the curve contract's `accumulated_fees` state field. It does not move until the deployer triggers `op::sweep_fees` after graduation.
+
+For a curve that fills with moderate volume, the deployer collects roughly 1% of the cumulative TON traded — for a 1,000 TON curve, that's about 10 TON, plus any extra volume from sells (which also pay the fee).
+
+## Graduation treasury cut — 10%
+
+Applied once at graduation, to the curve's accumulated TON. Stored in `params.fc` as `graduation_treasury_cut_bps = 1000` (1000 bps = 10%).
+
+```
+treasury_cut = real_ton × 10%  ≈ 100 TON (for a 1,000 TON graduation)
+```
+
+The cut is sent to the **protocol treasury** address (visible on the factory's `get_factory_config`).
+
+The remaining 90% (≈ 900 TON) seeds the DeDust pool's TON side. Combined with the 200M AMM-reserved Jettons, these form the initial DeDust pool reserves.
+
+## DeDust trading fees — variable
+
+After graduation, all trading happens on DeDust v2. DeDust applies its own per-pool fee (typically 0.05%–0.30% depending on the pool's volatility configuration). This fee goes to DeDust LPs and DeDust's own protocol cut, not to tonch.
+
+tonch does not collect any fee on post-graduation trades. The protocol's revenue from a token is bounded by the 3 TON launch fee + the 10% graduation cut.
+
+## Gas estimates
+
+These are rough estimates; actual gas depends on TON validator rates at the time.
+
+| Action | Approximate gas |
+|---|---|
+| Connect wallet (TonConnect) | 0 |
+| Buy on curve | 0.05–0.10 TON |
+| Sell on curve | 0.10–0.15 TON (TEP-74 transfer + curve response) |
+| Launch | 0.5–0.7 TON (separate from the 3 TON fee) |
+| Dev-buy | 0.05–0.10 TON |
+| Graduate (keeper-triggered) | ~0.5 TON, paid by the keeper, not by the deployer |
+| Sweep fees (deployer, post-graduation) | 0.05 TON |
+| DeDust trade | DeDust's standard gas (~0.2 TON) |
+
+When you initiate a transaction, tonch's frontend pads the value with a small gas buffer so the action lands. Any unspent gas refunds back to your wallet.
+
+## Worked example
+
+A deployer launches a token, dev-buys 5 TON, and the token graduates after total cumulative trading volume of 1,200 TON (some buying pressure followed by some selling). Outflows:
+
+- **Deployer pays:** 3 TON (launch) + 5 TON (dev-buy) + ~0.7 TON (gas) = **~8.7 TON out**.
+- **Deployer gets back at graduation (sweep fees):** 1% of 1,200 TON cumulative volume = **~12 TON** in claimable fees.
+- **Plus:** the deployer's dev-bought Jettons, now tradeable on DeDust.
+
+Net: deployer paid ~8.7 TON, claimed ~12 TON in fees, owns whatever Jetton position the dev-buy bought (free option on the post-graduation price).
+
+The protocol's revenue from this token: 3 TON launch fee + 100 TON graduation cut = **103 TON**.
+
+The DeDust pool's reserves: 900 TON + 200M Jettons. LP locked permanently.

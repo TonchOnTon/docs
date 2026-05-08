@@ -1,0 +1,88 @@
+---
+title: Bonding curve mechanics
+description: The math behind the tonch curve — virtual reserves, constant-product invariant, and why the price moves the way it does.
+---
+
+tonch uses a **virtual constant-product bonding curve**. Each per-launch curve contract holds two reserves — TON and Jetton — and prices buys and sells using a constant-product formula that includes virtual offsets to soften the curve's start.
+
+This is the same shape Pump.fun uses on Solana, scaled and recalibrated for TON.
+
+## The formula
+
+Let:
+
+- `vt` = virtual TON reserve = 300 TON
+- `vT` = virtual Jetton reserve = 1,010,000,000 (1.010B)
+- `Δton` = TON in (after 1% fee)
+- `Δtok` = Jettons out
+
+The buy formula maintains the constant product:
+
+```
+(vt + real_ton + Δton) × (vT - tokens_sold - Δtok) = vt × vT
+```
+
+Solving for `Δtok`:
+
+```
+Δtok = (vT - tokens_sold) × Δton / (vt + real_ton + Δton)
+```
+
+The sell formula is the inverse:
+
+```
+Δton_out = (vt + real_ton) × Δtok / (vT - tokens_sold + Δtok)
+```
+
+Both apply a 1% fee on the TON side: buys deduct the fee from `Δton` before the math; sells deduct from `Δton_out` after.
+
+## Why virtual reserves
+
+A pure constant-product curve with `real_ton = 0` and `real_token = 800M` would have a price of `0` at the first buy — anyone could acquire the entire supply for 1 nanoTON. Virtual reserves solve this by setting a synthetic starting state.
+
+With `vt = 300` and `vT = 1.010B`:
+
+- Initial price ≈ `300 / 1.010B = 297 nanoTON per Jetton unit`. (Each Jetton has 9 decimals, so this is 297 nanoTON per nano-Jetton, or 0.297 µTON per Jetton.)
+- Buying 1 TON moves price by ~0.33% — small enough that the first few buyers aren't massively rewarded for being early.
+- Buying 10 TON moves price by ~3.3%.
+- Buying 100 TON moves price by ~33% — getting steep, as it should.
+
+The 300 TON virtual reserve is roughly 30% of the 1,000 TON graduation target, giving the curve a relatively gentle slope compared to Pump.fun's tighter ratio. This is a deliberate tonch calibration — it favors gradual price discovery over aggressive early gains.
+
+## Curve trajectory
+
+If every buy is exactly `Δton = 1 TON net`, the simulator computes:
+
+| Cumulative TON in | Cumulative Jettons sold | Price per Jetton (nanoTON) |
+|---|---|---|
+| 0 | 0 | 297 |
+| 100 | ~252M | 533 |
+| 250 | ~459M | 905 |
+| 500 | ~631M | 1,801 |
+| 750 | ~706M | 2,943 |
+| 1,000 (graduation) | ~777M | 5,577 |
+
+(The graduation target is `real_ton = 1000 TON net`; at that point `tokens_sold ≈ 777M` of the 800M for-sale supply, leaving ~23M tokens that get burned at graduation.)
+
+Price grows roughly 19× from launch to graduation. For comparison, Pump.fun's price grows ~270× over its curve — tonch's curve is gentler, intentionally.
+
+## Why the curve burns the leftover
+
+At graduation, the curve has sold ~777M of its 800M for-sale supply. The remaining ~23M Jettons are leftover from rounding and the asymptotic shape of the curve (the last few Jettons would cost an enormous amount of TON to extract). The graduation handler burns these via `op::jetton_burn`, returning the supply to a clean state where the only outstanding Jettons are:
+
+- Jettons held by curve buyers.
+- The 200M AMM reserve, about to be deposited into DeDust.
+
+The total supply after graduation is therefore ~977M (1B minus the burned ~23M), all in active wallets or the DeDust pool.
+
+## Why a per-launch curve and not a shared pool
+
+Each launch gets its own curve contract for these reasons:
+
+- **Isolation.** A bug in one curve doesn't affect any other. Each curve has its own state, its own balance, its own LP locker.
+- **Permissionless graduation.** Anyone can call `op::graduate` on a filled curve. There's no shared queue or admin to gate the migration.
+- **DeDust vault wiring.** Each Jetton needs its own DeDust per-Jetton vault. The curve resolves and stores its specific DeDust addresses at deploy time.
+
+The downside is gas — each launch pays for a full contract deploy. The 3 TON launch fee covers this and the protocol's overhead.
+
+For the on-chain implementation see `tonlaunch/contracts/bonding-curve-sale.fc`. For the canonical curve simulator see `tonlaunch/simulator/curve-sim.ts`.

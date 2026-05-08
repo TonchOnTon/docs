@@ -1,0 +1,58 @@
+---
+title: Launching a Jetton
+description: What you need before launching a tonch Jetton, what gets deployed, and what to expect after the transaction lands.
+---
+
+Launching a Jetton on tonch is a single TonConnect signature. The launch transaction deploys two contracts (a TEP-74 Jetton master + a per-launch bonding curve), mints the supply, and registers the launch with the factory — all in one transaction.
+
+This page covers the full pre-flight and what to expect. The next two pages walk through the launch form fields and the optional dev-buy.
+
+## Pre-flight checklist
+
+Before you click **Launch on TON**, make sure you have:
+
+- A TON wallet with **at least 4 TON** (3 TON launch fee + ~0.5 TON gas + a small buffer).
+- A **square image URL** that wallets and explorers can fetch — usually 256×256 or 512×512 PNG/JPEG. Hosted on a CDN, your own domain, or a service like ImgBB. Don't use a Telegram link (rate-limited and blocked by some explorers).
+- A **clear name and symbol**:
+  - Name: 1–32 characters, any text.
+  - Symbol: 1–12 characters, A–Z and 0–9 only (the form auto-uppercases and strips other characters).
+- Optional: a **description** (shown on the token page and in some wallets), and **website / Telegram / X** links.
+- Optional: a **dev-buy size** in TON if you want to be the first buyer on your own curve.
+
+## What gets deployed
+
+A single launch transaction deploys these contracts:
+
+1. **TEP-74 Jetton master** — the standard TON Jetton contract. Holds total supply, mints to wallets via the standard transfer flow. Owned by the factory at first; ownership is renounced after the initial supply mint.
+2. **Bonding curve sale contract** — per-launch contract that holds the for-sale TON and Jetton reserves. Receives buys and sells until graduation, then triggers the DeDust migration.
+3. **LP locker** (one per launch) — the write-only sink that holds LP Jettons after graduation.
+
+The 1B token total supply is split:
+
+| Allocation | Amount | Where it goes at deploy |
+|---|---|---|
+| For-sale supply | 800,000,000 (80%) | Curve's Jetton wallet, sold via buys |
+| AMM reserve | 200,000,000 (20%) | Curve's Jetton wallet, held until graduation seeds DeDust |
+| Total | 1,000,000,000 | |
+
+There is **no creator allocation**. The deployer's only way to acquire tokens is to dev-buy at launch or buy on the curve like everyone else.
+
+## What happens after you click Launch
+
+1. **Address derivation.** The frontend computes the future Jetton master address using your token metadata + the standard Jetton master code. This is needed to set up the DeDust per-Jetton vault.
+2. **DeDust vault resolution.** The frontend asynchronously looks up the DeDust v2 native + Jetton vaults that will be used at graduation, and packs their addresses into the launch payload.
+3. **TonConnect signing prompt.** Your wallet shows the destination (the factory address), the value (3.5 TON: 3 TON fee + 0.5 TON gas), and the payload. Review and approve.
+4. **On-chain deploy.** The factory receives the message, deploys the curve and Jetton master contracts, mints supply, and emits a `TokenLaunched` external-out log.
+5. **Indexer pickup.** The tonch indexer polls the factory's outbound messages every 3 seconds. Your token appears in the API and the homepage **Live launches** strip within ~30 seconds.
+6. **Token detail page renders.** Once indexed, your token's page is live at `tonch.app/token/<curve_address>`. Share the URL — that's where buyers will trade.
+
+## What if it fails
+
+If the transaction is rejected or stalls:
+
+- **Wallet rejected:** your wallet's review screen flagged something. Check the destination address (should be the factory) and the value (3.5 TON). If those look right, try again or switch wallets.
+- **TonConnect timeout:** your wallet didn't respond in time. Re-open the modal and re-sign.
+- **Tx sent but token doesn't appear:** the indexer is a few seconds behind chain. Wait ~60 seconds and refresh. If it still doesn't appear after 5 minutes, check the deployer wallet's transaction history on Tonviewer to confirm the launch tx actually succeeded.
+- **Tx reverted on chain:** rare, usually only if the factory rejects the metadata format. Check the launch fee was 3 TON (or the current configured fee — see [Reference / Contracts](/reference/contracts)).
+
+The 3 TON launch fee is **not refunded** if the transaction reverts after the factory accepts it. If the wallet refuses to sign or the tx never lands, no funds move.

@@ -1,0 +1,64 @@
+---
+title: Trading overview
+description: How to buy and sell Jettons on tonch — wallets, curves, fees, and the post-graduation handoff to DeDust.
+---
+
+tonch is a fully on-chain launchpad. You trade by signing TonConnect transactions from your own wallet — there is no exchange account, no deposit, no withdrawal. Every trade is a Jetton transfer or TON transfer to a curve contract that exists for exactly one token.
+
+## Connecting a wallet
+
+tonch works with any TonConnect-compatible TON wallet:
+
+- **Tonkeeper** (mobile + browser extension)
+- **MyTonWallet** (browser extension + standalone)
+- **OpenMask** (browser extension)
+- **Tonhub** (mobile)
+
+Click **Connect Wallet** at the top of [tonch.app](https://tonch.app) and pick your wallet. Approve the connection request — TonConnect only asks for your address, not signing permissions. Each transaction is approved individually when you trade or launch.
+
+You'll need:
+
+- **TON for gas** — at minimum ~0.2 TON in the wallet for buys/sells.
+- **TON to trade** — whatever amount you want to spend on the curve.
+
+## Two trading phases
+
+A Jetton's price discovery happens in two clearly separated phases.
+
+### Curve phase (before graduation)
+
+Before the curve fills (1,000 TON collected), all trading happens on the per-launch bonding curve. Buys and sells go directly to the curve contract — there is no order book, no market maker, no spread. Price moves deterministically along the virtual constant-product curve as the real TON reserve fills.
+
+During this phase:
+
+- The Jetton can only be bought from or sold back to the curve.
+- Liquidity grows monotonically with each buy. It never leaves until graduation.
+- There is a 1% fee on every buy and sell, taken from the curve and claimable by the deployer.
+
+### DeDust phase (after graduation)
+
+Once the curve hits 1,000 TON, the next graduation transaction migrates all reserves to a TON/Jetton pool on [DeDust v2](https://dedust.io/) and locks the LP Jettons. From then on:
+
+- The original curve contract no longer accepts buys or sells.
+- Trading happens on the DeDust pool like any other Jetton pair.
+- DeDust's standard fee schedule applies (separate from tonch's curve fee).
+- Liquidity is locked permanently — it cannot be withdrawn by anyone, including the deployer or the protocol.
+
+See [After graduation](/trading/after-graduation) for how to trade on DeDust.
+
+## Fees you'll see
+
+| When | Fee | Who pays | Where it goes |
+|---|---|---|---|
+| Curve buy | 1% of TON in | Buyer | Held in the curve, claimable by deployer |
+| Curve sell | 1% of TON out | Seller | Same |
+| Network gas | ~0.05–0.15 TON | Trader | TON validators (standard) |
+| DeDust trade | DeDust's fee tier | Trader | DeDust LPs and protocol |
+
+There is **no slippage protection on the curve** in the sense of an off-chain price oracle — the curve price is the on-chain price, computed deterministically from current reserves at the moment your transaction is processed. If a different trade lands between your quote and your transaction, your fill price will reflect the curve state at execution.
+
+## What you cannot do
+
+- You cannot trade a Jetton **after** the curve fills but **before** graduation finalizes — there is a brief window (usually under a minute) where the curve has crossed the threshold but DeDust seeding hasn't completed. The frontend will block buys during this window and show a "graduating" state.
+- You cannot withdraw LP after graduation. There is no opcode for it.
+- You cannot get a better-than-curve price as the deployer. The optional [dev-buy](/launching/dev-buy) goes through the same curve.

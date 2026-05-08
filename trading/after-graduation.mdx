@@ -1,0 +1,55 @@
+---
+title: After graduation
+description: How a tonch Jetton trades once liquidity has migrated to DeDust v2 and LP is permanently locked.
+---
+
+Graduation is the one-way migration from the per-launch bonding curve to a TON/Jetton pool on [DeDust v2](https://dedust.io/). It happens automatically when the curve collects 1,000 TON.
+
+After graduation, the original tonch curve contract becomes inert — it no longer accepts buys or sells. All trading shifts to the DeDust pool.
+
+## How to find the DeDust pool
+
+There are three reliable ways to get to a graduated token's DeDust pool:
+
+1. **From the tonch token detail page.** After graduation, the page shows a **DeDust pool** card with the pool address and a direct link to DeDust's interface.
+2. **From the indexer's API:** `GET /api/launches/<curve_address>` returns the `dedust_pool` field once the migration finalizes.
+3. **From DeDust directly.** The pool is a normal volatile TON/Jetton pool on DeDust v2. You can search for the Jetton by symbol or paste its master address into [dedust.io](https://dedust.io/).
+
+## Trading on DeDust
+
+The post-graduation trading experience is identical to any other DeDust v2 Jetton pair:
+
+- Connect your TON wallet at [dedust.io](https://dedust.io/).
+- Pick the Jetton from the swap interface (paste the master address if it doesn't appear by name).
+- Enter your trade amount, set slippage, sign the swap.
+
+DeDust's fees apply (separate from tonch's curve fees). DeDust v2 currently uses configurable per-pool fees; check the pool's parameters on DeDust's interface for the exact tier.
+
+## What's locked, and what isn't
+
+| Component | After graduation |
+|---|---|
+| LP Jettons | Permanently locked in the LP locker contract — no withdrawal opcode |
+| TON in pool | Locked in DeDust's TON vault, only movable by trades through the pool |
+| Reserved 200M Jettons | Now part of the pool's reserves, removable only via DeDust trades |
+| Original curve contract | Inert — buys/sells no longer accepted |
+| Jetton master | Still functional for transfers, balances, total supply |
+
+The deployer can no longer affect the pool's liquidity. Neither can the tonch protocol. The pool is just a regular DeDust pool — trades happen permissionlessly forever, and only the trades themselves move tokens in or out.
+
+## Why we lock the LP
+
+A locked LP is a credible commitment that the pool can't be drained by the deployer or operator. Without an LP lock, the deployer of the launchpad (or the deployer of an individual token) could remove all liquidity at any time, leaving holders with worthless tokens — a "rug pull". With the LP locked permanently in a contract that has no withdrawal path, the only way liquidity decreases is if traders sell into the pool, which is the normal market dynamic.
+
+The locker contract's source is verifiable on Tonviewer. It has exactly one accepted opcode: `op::lock_lp`, received via `transfer_notification` from the LP-Jetton wallet. Any other message — including any conceivable withdrawal attempt — bounces back to its sender.
+
+## Verifying the lock yourself
+
+If you want to confirm the LP is locked for a specific token:
+
+1. Get the LP locker address from the token's API response: `GET /api/launches/<curve_address>` → `lp_locker_address`.
+2. Open Tonviewer at `https://tonviewer.com/<lp_locker_address>`.
+3. Read the contract's source (verified) — confirm there's no withdrawal opcode.
+4. Read its Jetton holdings — the LP Jetton balance should match the supply minted by the DeDust pool at graduation.
+
+For more on the security model, see [Reference / Security](/reference/security).

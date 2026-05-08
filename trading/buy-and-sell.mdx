@@ -1,0 +1,57 @@
+---
+title: Buying and selling on the curve
+description: Step-by-step buy and sell flow during the bonding-curve phase of a tonch Jetton.
+---
+
+Buying and selling on a tonch curve is two TonConnect transactions away. Both flows happen at [tonch.app/token/&lt;address&gt;](https://tonch.app), where each token has a detail page with a chart and a combined buy/sell panel.
+
+## Buying
+
+1. Open the token's detail page from the homepage's **Live launches** strip, the **Explore** page, or directly via `/token/<curve_address>`.
+2. Click the **Buy** tab in the trade panel.
+3. Type the TON amount you want to spend. The panel shows a real-time quote: the Jettons you'll receive (after the 1% curve fee) and the implied price-per-Jetton.
+4. Click **Buy**. TonConnect prompts you to sign a transaction sent to the curve contract.
+5. Approve in your wallet. The transaction sends TON to the curve, the curve mints Jettons to your wallet via TEP-74 transfer, and the trade is indexed within ~10 seconds.
+
+The TonConnect prompt will show:
+
+- **Destination:** the curve contract address (per-token, derivable from the launch).
+- **Amount:** the TON you typed plus a small gas buffer (~0.15 TON).
+- **Payload:** an `op::buy` message body with the TON amount.
+
+After signing, your token balance increases. Refresh the page or wait for the indexer to update — the trade history and your wallet's holder row appear within a minute.
+
+## Selling
+
+Selling on the curve uses the standard TEP-74 Jetton transfer flow with a `transfer_notification` payload that the curve recognizes:
+
+1. From the same token detail page, click the **Sell** tab.
+2. Type the Jetton amount you want to sell. The panel shows the TON you'll receive (after the 1% fee).
+3. Click **Sell**. TonConnect prompts you to sign a TEP-74 Jetton transfer.
+4. Approve. Your Jetton wallet sends Jettons to the curve's wallet; the curve receives the `transfer_notification`, computes the TON owed, and sends it back to you.
+
+The TonConnect prompt will show:
+
+- **Destination:** your own Jetton wallet (this is how TEP-74 transfers work — you message your own wallet, not the curve directly).
+- **Amount:** ~0.2 TON for gas (the value here is **not** the trade size; the Jetton amount is in the payload).
+- **Payload:** an `op::transfer` body with the Jetton amount and the curve's wallet as the destination.
+
+The TON arrives in your wallet a few seconds after the curve processes the sell.
+
+## Reading the chart
+
+The token detail page renders a live bonding curve chart and a current-position marker:
+
+- **Y-axis:** TON price per Jetton. As the curve fills, price climbs.
+- **X-axis:** TON collected (real reserves), from 0 to the 1,000 TON graduation target.
+- **Marker:** where the curve currently sits.
+- **Progress bar:** the same data shown as a percentage to graduation.
+
+The shape of the curve is fixed — it's a hyperbola defined by the initial virtual reserves (`virtual_ton = 300 TON`, `virtual_token = 1.010B`). See [Bonding curve mechanics](/mechanics/bonding-curve) for the math.
+
+## What can fail
+
+- **Quote endpoint returns 503.** The indexer hasn't enriched the curve config yet (only happens in the first ~60 seconds after launch). Refresh in a moment.
+- **Signing rejected by your wallet.** Your wallet checked the destination, amount, or payload and refused. Try again or switch wallets.
+- **Trade lands but UI doesn't update.** The indexer is a few seconds behind chain. Refresh after ~30 seconds.
+- **TON insufficient for gas.** Top up by 0.2 TON and retry.

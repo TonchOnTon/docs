@@ -1,0 +1,87 @@
+---
+title: The launch form
+description: Field-by-field guide to filling out the tonch launch form.
+---
+
+The [tonch.app/launch](https://tonch.app/launch) form is intentionally minimal. It collects the metadata your token needs to be wallet- and explorer-friendly, plus an optional dev-buy. There is no network selector (mainnet only) and no slippage field (your dev-buy is the curve's first transaction, so slippage doesn't apply).
+
+## Required fields
+
+### Name
+
+The full token name shown in wallets, the homepage strip, the token detail page, and DeDust's pool list.
+
+- 1–32 characters.
+- Anything goes — emoji, capitalization, spaces. This is what humans see.
+- Picked once, immutable. The Jetton master stores it on chain via TEP-64 onchain content.
+
+Example: `Blue Whale`, `BoneMeal`, `Catnip Token`.
+
+### Symbol
+
+The ticker. Auto-uppercased, A–Z and 0–9 only, max 12 characters.
+
+- Common: 3–6 characters (`WHALE`, `BONE`, `NIP`).
+- Avoid collisions — many wallets and aggregators surface tickers, and confusion with existing tokens helps no one.
+
+The form strips invalid characters as you type, so you can paste freely.
+
+### Description
+
+A short blurb. 1–280 characters is a good target. Shown on the token detail page and in some wallets that render TEP-64 metadata.
+
+This isn't a marketing whitepaper — keep it tight.
+
+### Image URL
+
+A direct URL to a square image. Wallets and explorers will fetch this URL when they render your Jetton.
+
+**Requirements:**
+
+- Direct, public URL (no auth, no CDN signing).
+- HTTPS preferred.
+- 256×256 or 512×512 PNG/JPEG/WEBP works best.
+- Square. Non-square images get cropped or stretched depending on the wallet.
+
+**Avoid:**
+
+- Telegram-hosted images (rate-limited, often blocked).
+- IPFS without a public gateway pin.
+- Imgur (sometimes 403s for explorer fetchers).
+
+ImgBB, GitHub raw content, your own CDN, or a Pinata-pinned IPFS gateway URL are all reliable.
+
+## Optional fields
+
+### Website / Telegram / X
+
+Direct links to your token's external presence. Shown on the token detail page as clickable icons. Empty fields render as nothing — no placeholders, no "TBA" text.
+
+### Dev buy
+
+The TON amount you want to spend on your own token at launch. Sent as a separate buy on the curve **immediately after launch**, in the same session. See [Dev-buy](/launching/dev-buy) for the full mechanics.
+
+Leave blank if you don't want to dev-buy. Buying later as a regular trader works exactly the same way — there is no preferential window.
+
+## Read-only constants
+
+The form shows three on-chain constants for reference:
+
+| Constant | Value |
+|---|---|
+| Total supply | 1,000,000,000 (1B) |
+| Graduation target | 1,000 TON |
+| Launch fee | 3 TON |
+
+These are factory-level constants, the same for every launch. They cannot be overridden per launch.
+
+## Submitting
+
+Once your wallet is connected and the required fields are filled, click **Launch on TON**. Two things happen client-side before the wallet prompts:
+
+1. **DeDust vault resolution.** The frontend resolves the future DeDust v2 vault addresses for the Jetton master that's about to be deployed. This is asynchronous (~1 second on a healthy RPC) and required so the curve knows where to send liquidity at graduation.
+2. **Payload encoding.** The frontend builds the TEP-64 onchain content cell with your metadata, derives the Jetton master address, and packs everything into the `op::launch` payload.
+
+Then your wallet receives the prompt. Review the destination (factory address) and value (~3.5 TON), and approve.
+
+The next page is rendered automatically once the indexer picks up your launch — usually 30–60 seconds.

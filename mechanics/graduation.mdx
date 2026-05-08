@@ -1,0 +1,106 @@
+---
+title: Graduation
+description: What happens when a curve fills — the migration to DeDust v2, the LP lock, and how the 10% protocol cut is taken.
+---
+
+Graduation is the one-way transition from per-launch bonding curve to permanent DeDust v2 pool. It happens automatically when the curve's real TON reserve reaches 1,000 TON.
+
+Anyone can trigger graduation by sending an `op::graduate` message to the curve. tonch operates a keeper that does this automatically within seconds of the threshold being crossed; the keeper is just a convenience and isn't required.
+
+## Trigger conditions
+
+The `op::graduate` handler runs these guards before doing anything:
+
+- `graduation_state < state::graduated` — not already graduated.
+- `real_ton >= graduation_ton_target` — the curve has actually reached 1,000 TON.
+- `msg_value >= min_graduate_gas_reserve` — the trigger transaction has enough gas to cover the migration messages.
+
+If any check fails, the message bounces and nothing happens.
+
+## The migration sequence
+
+A successful `op::graduate` runs these steps atomically in a single transaction:
+
+### 1. Treasury cut
+
+The contract computes:
+
+```
+treasury_cut = real_ton × graduation_treasury_cut_bps / fee_denominator
+            = real_ton × 1000 / 10000
+            = real_ton × 10%
+            ≈ 100 TON (for the canonical 1,000 TON graduation)
+```
+
+This 10% goes to the protocol treasury via a TON transfer. It covers:
+
+- Long-term protocol operating costs.
+- Liquidity bootstrap funds for ecosystem partnerships.
+- Future development of tonch's contracts and frontend.
+
+### 2. Pool seed split
+
+The remaining `real_ton - treasury_cut` (≈ 900 TON) is the **pool seed TON**. Combined with the **200M reserved Jettons** (the AMM reserve allocation), this is what funds the DeDust pool:
+
+```
+pool_seed_ton = real_ton - treasury_cut ≈ 900 TON
+pool_seed_jettons = amm_reserve_amount = 200,000,000
+```
+
+### 3. Burn unsold curve supply
+
+Any Jettons still held by the curve **beyond the AMM reserve** are leftover from the curve's asymptotic shape (typically ~23M of the 800M for-sale supply). These get burned via `op::jetton_burn`:
+
+```
+unsold = real_token - amm_reserve_amount
+burn(unsold)
+```
+
+After this step, the curve holds exactly the 200M reserved Jettons, ready to deposit into DeDust.
+
+### 4. DeDust native vault deposit
+
+The curve sends the pool seed TON to DeDust's **native (TON) vault** with a `deposit_liquidity` payload that names the future pool's two assets and the minimum LP amount (set to 1, accepting any LP).
+
+### 5. DeDust Jetton vault deposit
+
+The curve sends the 200M Jettons to DeDust's **per-Jetton vault** with a TEP-74 transfer carrying a `deposit_liquidity` forward payload. The forward payload tells DeDust to credit the deposit to the same liquidity-deposit address as the native deposit in step 4.
+
+### 6. LP minting and routing
+
+DeDust's pool contract receives both deposits, computes the LP supply to mint, and sends the LP Jettons back to the depositor — which is the curve. The curve's `transfer_notification` handler recognizes the LP Jetton and forwards it to the **LP locker** contract.
+
+### 7. State transition
+
+The curve's state transitions to `state::graduated`. From this point:
+
+- Buys and sells are rejected.
+- The `op::sweep_fees` opcode (deployer-only) becomes claimable by the original deployer for any accumulated curve fees.
+- The Jetton master continues to function normally for transfers among holders.
+
+## Why so many steps in one transaction
+
+Each step uses TON's actor-model message passing — sending a message to another contract that processes asynchronously. The graduation transaction sends all the messages in one go, but they execute across multiple chain blocks. This means:
+
+- The whole sequence finalizes over ~3–10 blocks (~1–10 seconds depending on TON validator timing).
+- The frontend's "graduating" state lasts until DeDust returns the LP Jettons to the curve and the curve forwards them to the locker.
+- A graduation can stall if any single message bounces — for instance, if DeDust's pool is mid-deploy and not yet ready to accept deposits. The keeper retries on failure.
+
+## What the deployer gets
+
+Two things flow back to the deployer at graduation:
+
+1. **Accumulated curve fees** — the 1% per-trade fees collected during the curve phase. Claimable via `op::sweep_fees` by the original deployer's address. For a curve that filled in moderate volume, this is roughly 1% of 1,000 TON ≈ 10 TON.
+2. **Their dev-buy holdings** — if the deployer dev-bought, those Jettons are in the deployer's wallet from the moment of the dev-buy. They are not affected by graduation.
+
+The deployer receives **no LP rewards, no graduation bonus, no special unlock**. The LP is locked for everyone, including them.
+
+## Verification
+
+Once graduation completes, you can verify the final state by reading the curve contract on Tonviewer:
+
+- `get_curve_state` returns the current state (should be `graduated`).
+- The curve's TON balance should be near zero (only gas dust).
+- The curve's Jetton balance should be zero.
+- The DeDust pool should hold the 900 TON + 200M Jetton reserves.
+- The LP locker's Jetton balance should match the LP supply minted by DeDust.

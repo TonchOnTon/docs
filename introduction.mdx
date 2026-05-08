@@ -1,0 +1,24 @@
+---
+title: tonch
+description: TON-native Jetton launchpad. Bonding curve until graduation, permanent LP lock at DeDust v2, non-custodial TonConnect signing.
+---
+
+tonch is a Pump.fun-style launchpad for TON Jettons. Anyone can deploy a token in three clicks — fill a form, sign with a TON wallet, your token opens on a transparent bonding curve. When the curve fills (1,000 TON collected), liquidity migrates to a DeDust v2 pool and the LP tokens are forwarded to a write-only locker, sealing the liquidity permanently.
+
+There are no admin pause opcodes, no creator allocations, and no special early-buyer pricing. Every buy and sell — including the deployer's optional dev-buy — goes through the same curve at the same fee.
+
+## Get started
+
+Choose your role to find the right starting point.
+
+- **Traders:** [Trading overview](/trading/overview) — buy and sell on the curve, then on DeDust after graduation.
+- **Token deployers:** [Launching a Jetton](/launching/overview) — fill the form, sign once, get a live token.
+- **Developers / curious readers:** [How it works](/how-it-works) — the lifecycle and on-chain flow at a glance.
+
+## What you'll need
+
+- A TON wallet that supports TonConnect (Tonkeeper, MyTonWallet, OpenMask, Tonhub).
+- TON in your wallet — at least 0.5 TON for trading, 4 TON for launching (3 TON fee + ~1 TON gas).
+- A square image URL to use as your token's avatar (only required for launching).
+
+The app lives at [tonch.app](https://tonch.app). All on-chain state is sourced from the contracts themselves — the indexer and frontend are conveniences, not the source of truth for funds.
