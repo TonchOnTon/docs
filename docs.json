@@ -3,6 +3,12 @@
   "theme": "mint",
   "name": "tonch",
   "description": "TON-native Jetton launchpad. Bonding curves, transparent graduation to DeDust v2, permanent LP locking.",
+  "logo": {
+    "light": "/images/tonch.jpg",
+    "dark": "/images/tonch.jpg",
+    "href": "/"
+  },
+  "favicon": "/images/tonch.jpg",
   "colors": {
     "primary": "#0088FF",
     "light": "#38BDF8",
